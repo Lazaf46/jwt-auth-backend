@@ -1,12 +1,21 @@
 const sendErrorDev = (err, req, res) => {
-    // if (req.originalUrl.startsWith('/api')) {
-        return res.status(err.statusCode).json({
-            status: err.status,
-            error: err,
-            message: err.message,
-            stack: err.stack,
-        });
-    // }
+        let errorObj;
+
+        if(err.message.includes('E11000 duplicate key error collection')) {
+            errorObj = {
+                status: 400,
+                message: 'User already exists. Try again with a different email'
+            };
+        } else {
+            errorObj = {
+                status: err.statusCode,
+                message: err.message,
+                error: err,
+                stack: err.stack
+            };
+        }
+
+        return res.status(errorObj.status).json(errorObj);
 };
 
 module.exports = (err, req, res, next) => {
