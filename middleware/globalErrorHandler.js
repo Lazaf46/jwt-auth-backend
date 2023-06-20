@@ -6,7 +6,18 @@ const sendErrorDev = (err, req, res) => {
                 status: 400,
                 message: 'User already exists. Try again with a different email'
             };
-        } else {
+        }  else if(err.message.includes("Cannot read property 'jwt' of undefined")) {
+            errorObj = {
+                status: 401,
+                message: 'JWT token is not present'
+            };
+        } else if(err.message.includes('jwt malformed')) {
+            errorObj = {
+                status: 401,
+                message: 'Invalid JWT token'
+            };
+        }
+        else {
             errorObj = {
                 status: err.statusCode,
                 message: err.message,
