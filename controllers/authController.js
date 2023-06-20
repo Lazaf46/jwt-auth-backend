@@ -29,18 +29,22 @@ exports.signup = catchAsync(async (req, res, next) => {
   const newUser = await User.create({
     name: req.body.name,
     email: req.body.email,
-    role: req.body.role,
     password: req.body.password, // encryption is handled in the data layer
     passwordConfirm: req.body.passwordConfirm,
   });
 
   const token = signToken(newUser._id);
 
+  const {name, email} = newUser;
+
   res.status(201).json({
     status: 'success',
     token, // token is not sent in the data property
     data: {
-      user: newUser, // password select should be set to false in the data layer
+      user: {
+          name, 
+          email
+      },
     },
   });
 });
