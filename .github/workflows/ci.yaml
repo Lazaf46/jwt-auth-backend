@@ -1,0 +1,95 @@
+name: Test and Build
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+env:
+  DB_CONNECTION_STRING: mongodb+srv://<DB_USER>:<PASSWORD>@cluster0.ezbuktp.mongodb.net/<DB_NAME>?retryWrites=true&w=majority
+  PORT: 8000
+jobs:
+  test:
+    environment: Test
+    runs-on: self-hosted
+    steps:
+      - name: Setup nodejs 18
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18
+      - name: Get Code
+        uses: actions/checkout@v3
+      - name: Create config.env file
+        run: |
+          echo "DB_NAME=${{ secrets.DB_NAME }}" > __tests__/config.env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> __tests__/config.env
+          echo "DB_USER=${{ secrets.DB_USER }}" >> __tests__/config.env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> __tests__/config.env
+          echo "JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}" >> __tests__/config.env
+          echo "DB_CONNECTION_STRING=${{ env.DB_CONNECTION_STRING }}" >> __tests__/config.env
+          echo "PORT=${{ env.PORT }}" >> __tests__/config.env
+        working-directory: ${{ github.workspace }}
+      - name: Cache dependencies
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: deps-node-modules-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: |
+          if [ "${{ steps.cache.outputs.cache-hit }}" != "true" ]; then
+            npm ci
+          fi
+      - name: Test code
+        id: run-tests
+        run: npm test
+
+  build:
+    needs: test
+    environment: Production
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install node js 18
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+      - name: Create config.env file
+        run: |
+          echo "DB_NAME=${{ secrets.DB_NAME }}" > config.env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> config.env
+          echo "DB_USER=${{ secrets.DB_USER }}" >> config.env
+          echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> config.env
+          echo "JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}" >> config.env
+          echo "DB_CONNECTION_STRING=${{ env.DB_CONNECTION_STRING }}" >> config.env
+          echo "PORT=${{ env.PORT }}" >> config.env
+        working-directory: ${{ github.workspace }}
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: deps-node-modules-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: |
+          if [ "${{ steps.cache.outputs.cache-hit }}" != "true" ]; then
+            npm ci
+          fi
+      - name: Check if jwt-auth-backend is running
+        id: check_pm2
+        run: |
+          status=$(pm2 list | grep -w "jwt-auth-backend" | awk '{print $18}')
+          if [[ "$status" == "online" ]]; then
+            echo "::set-output name=pm2_status::online"
+          elif [[ "$status" == "stopped" ]]; then
+            echo "::set-output name=pm2_status::stopped"
+          else
+            echo "::set-output name=pm2_status::"
+          fi
+      - name: Start jwt-auth-backend if pm2 is not started yet
+        if: steps.check_pm2.outputs.pm2_status == ''
+        run: sudo pm2 start /home/ec2-user/jwt-auth-backend/_work/Devops-Assignmnet-01/Devops-Assignmnet-01/index.js --name=jwt-auth-backend
+      - name: Start jwt-auth-backend if pm2 is stopped
+        if: steps.check_pm2.outputs.pm2_status == 'stopped'
+        run: sudo pm2 start jwt-auth-backend
+      - name: Restart jwt-auth-backend if pm2 is online
+        if: steps.check_pm2.outputs.pm2_status == 'online'
+        run: sudo pm2 restart jwt-auth-backend
