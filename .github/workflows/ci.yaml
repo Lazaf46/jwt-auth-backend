@@ -86,7 +86,7 @@ jobs:
           fi
       - name: Start jwt-auth-backend if pm2 is not started yet
         if: steps.check_pm2.outputs.pm2_status == ''
-        run: sudo pm2 start /home/ec2-user/jwt-auth-backend/_work/jwt-auth-backend/jwt-auth-backend/index.js --name=jwt-auth-backend
+        run: sudo pm2 start /home/ec2-user/actions-runner/_work/jwt-auth-backend/jwt-auth-backend/index.js --name=jwt-auth-backend
       - name: Start jwt-auth-backend if pm2 is stopped
         if: steps.check_pm2.outputs.pm2_status == 'stopped'
         run: sudo pm2 start jwt-auth-backend
